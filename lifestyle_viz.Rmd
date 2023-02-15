@@ -1,0 +1,109 @@
+---
+title: "Lifestyle Channels Visualiations"
+author: "Olivia Wang"
+date: "2023-02-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+data = read.csv("lifestyle.csv")
+data$X <- factor(data$X)
+```
+
+```{r}
+ggplot(data, aes(x = video_views, y = video_likes, color = X)) +
+  geom_point(size = 5) + 
+  xlab("Views of the latest video in lifestyle category") + 
+  ylab("Likes of the latest video in lifestyle category") + 
+  theme(legend.position = "none")
+```
+```{r}
+total_m <- c()
+for(string in data$video_length) {
+  minutes <- as.numeric(sub("PT([0-9]+)M.*", "\\1", string))
+  seconds <- as.numeric(sub("PT[0-9]+M([0-9]+)S.*", "\\1", string))
+  if(seconds > 30) {
+    minutes = minutes + 1
+  }
+  total_m <- c(total_m, minutes)
+}
+
+data <- data %>% 
+  mutate(total_minutes = total_m)
+
+ggplot(data, aes(x = total_minutes, y = video_views, color = X)) + 
+  geom_point(size = 5) + 
+  xlab("The length of the latest video in lifestyle category") +
+  ylab("Views of the latest video in lifestyle category") + 
+  theme(legend.position = "none")
+```
+
+
+```{r}
+channel0 <- read.csv("channel0.csv")
+channel3 <- read.csv("channel3.csv")
+channel4 <- read.csv("channel4.csv")
+channel12 <- read.csv("channel12.csv")
+channel15 <- read.csv("channel15.csv")
+channel16 <- read.csv("channel16.csv")
+channel22 <- read.csv("channel22.csv")
+channel24 <- read.csv("channel24.csv")
+channel25 <- read.csv("channel25.csv")
+channel29 <- read.csv("channel29.csv")
+channel34 <- read.csv("channel34.csv")
+channel35 <- read.csv("channel35.csv")
+channel37 <- read.csv("channel37.csv")
+channel38 <- read.csv("channel38.csv")
+channel41 <- read.csv("channel41.csv")
+channel43 <- read.csv("channel43.csv")
+channel45 <- read.csv("channel45.csv")
+channel46 <- read.csv("channel46.csv")
+channel48 <- read.csv("channel48.csv")
+lifestyle_vids <- bind_rows(channel0, channel3, channel4, channel12, 
+                            channel15, channel16, channel22, channel24,
+                            channel25, channel29, channel34, channel35, 
+                            channel37, channel38, channel41, channel43,
+                            channel45, channel46, channel48)
+channels_list <- list(channel0, channel3, channel4, channel12, 
+          channel15, channel16, channel22, channel24,
+          channel25, channel29, channel34, channel35, 
+          channel37, channel38, channel41, channel43,
+          channel45, channel46, channel48)
+idx <- seq_len(nrow(lifestyle_vids))
+id <- c()
+for(i in seq_along(data$X)) {
+  id <- c(id, rep(data$X[i], nrow(channels_list[[i]])))
+}
+lifestyle_vids <- cbind(idx, id, lifestyle_vids[-1])
+```
+
+```{r}
+max_views <- lifestyle_vids %>% 
+  group_by(id) %>% 
+  slice(which.max(view_count)) %>% 
+  select(idx, id, title, published, view_count, comment_count)
+
+hr_num <- c()
+for(string in max_views$published) {
+  hr_num <- c(hr_num, as.numeric(str_extract(regmatches(string, regexpr("\\d{2}\\:", string)), "\\d{2}")))
+}
+hr_views <- data.frame(id = max_views$id, hr_num = hr_num, 
+                  maxview = max_views$view_count)
+hr_views %>% 
+  arrange(desc(maxview)) %>% 
+  mutate(id = factor(id, id)) %>% 
+  ggplot(aes(x = maxview, y = hr_num, size = maxview, color = id)) + 
+  geom_point(alpha = 0.5) +
+  scale_size(range = c(0.1, 24)) + 
+  theme(legend.position = "none") +
+  xlab("Maximum view for each channel in lifestyle category") +
+  ylab("Time when the video with maximum view posted")+
+  ggtitle("The relationship between the maximum view and the posted time")
+```
+
