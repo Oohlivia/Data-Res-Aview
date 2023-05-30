@@ -6,115 +6,76 @@ import plotly.express as px
 import re
 from collections import Counter
 from sam_fun import *
-api_key = "AIzaSyBqgqP0nQ-qP4LJc4_kytQTERSq-pXOff0" # you can change it to your own api 
-
-########## scraping from https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#AA############
-def get_country_code(country_name):
-    
-    """
-    input a country name, output a country code
-    """
-    url = "https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#AA"
-    page = requests.get(url)
-
-    soup = BeautifulSoup(page.content, "html.parser")
-
-    tables = soup.find_all("table", class_="wikitable")
-    dfs = []
-
-    for table in tables:
-        rows = table.find_all("tr")
-        data = []
-        for row in rows:
-            cells = row.find_all("td")
-            if cells:
-                # add the contents of each cell to the data list
-                row_data = []
-                for cell in cells:
-                    row_data.append(cell.get_text().strip())
-                data.append(row_data)
-        # create a pandas dataframe from the data list and add it to the dfs list
-        df = pd.DataFrame(data)
-        dfs.append(df)
-
-
-    countries = dfs[2].iloc[:, 0:2]
-    countries = countries.rename(columns={0: 'code', 1: 'country'})
-    country_index = countries[countries.country == country_name].index[0]
-    country_code = countries.code[country_index]
-    
-    return country_code
-
-###############################################################################
-def plot_top_channels(country, column, percentile):
-    """
-    returns a df with top percentile Youtube channels in a specific country:
-    
-    @country: a string for the name of the country
-    @column: a string for the column to define top 5; 
-            3 options: 'Subscriber Count', 'View Count', 'Video Count'
-    """
-    country_code = get_country_code(country) # switch the country name into country code
-    if column == 'Subscriber Count':
-        df_column = 'subscriberCount'
-    elif column == 'View Count':
-        df_column = 'viewCount'
-    elif column == 'Video Count':
-        df_column = 'videoCount'
-        
-    youtube = build("youtube","v3", developerKey=api_key)
-    creator_ids= trending_creators_by_country(youtube, country_code)
-    stats_df = channels_stats(youtube, creator_ids)
-    stats_df = add_emails(stats_df)
-    #top5 = in_stats_df.sort_values(df_column, ascending = False).head(5)
-    top_channels_df = top_channels(stats_df, df_column, percentile)
-     
-    #text_labels = [f'{value}' for value in top5[df_column]] 
-    legend_labels = [f'{email}' for email in top_channels_df.emails]
-    fig = px.bar(top_channels_df, x = 'title', y = df_column,
-            title = 'Top ' + str(100 - percentile) + ' Percentile Youtube Channels in' + ' ' + 
-                 country + ' ' + 'Based on' + ' ' + column,
-            hover_data = ['title', 'country', 'viewCount', 'subscriberCount', 'videoCount'],
-            color = legend_labels) # text_labels?
-    
-    fig.update_layout(xaxis_title = 'Channels', yaxis_title= column)
-    fig.update_layout(legend_title_text='Legend Title', 
-                      legend=dict(title='Emails', x=0, y=-1.2, orientation='h'))
-    fig.show()
-    
+import plotly.graph_objects as go
+api_key = 'AIzaSyDSz4TNw2LDHmdotHZoZb90Oe06z8FOC2Y'
+# "AIzaSyBqgqP0nQ-qP4LJc4_kytQTERSq-pXOff0" # can change it to your own api 
 ###############################################################################    
 def plot_most_recent(user, column):
     """
-    returns a df with the specified statistics of most recent 10 Youtube channel's videos:
+    plots the specified statistics of the most recent 10 Youtube channel's videos:
     
     @user: a string for the user id of the channel
-    @column: a string for the column to define top 10; 
-            3 options: 'Like Count', 'View Count', 'Video Length'
+    @column: a string specifying the column to define top 10; 
+            3 options: 'Like Count', 'View Count', 'Comment Count'
     """
     if column == 'Like Count':
         df_column = 'likeCount'
+        col = 'Likes'
     elif column == 'View Count':
         df_column = 'viewCount'
-    elif column == 'Video Length':
-        df_column = 'videoLength'
+        col = 'Views'
+    elif column == 'Comment Count':
+        df_column = 'commentCount'
+        col = 'Comments'
         
     youtube = build("youtube","v3", developerKey=api_key)
     in_stats_df = channels_stats(youtube,[user])
     video_ids = get_videoID_list(youtube,user)
     video_stats = get_video_details(youtube,video_ids)
-    most_recent10 = video_stats.head(10)
-     
-    fig = px.bar(most_recent10, x = 'title', y = df_column,
-            title = column + '\'s of ' + in_stats_df.title[0] + '\'s 10 Most Recent Videos',
-            hover_data = ['title', df_column])
+    most_recent10 = video_stats.sort_values("published", ascending = False).head(10)
+    most_recent10[df_column] = most_recent10.loc[:,df_column].astype(int)
     
-    fig.update_layout(xaxis_title = 'Video', yaxis_title= column)
-    # fig.update_layout(margin=dict(l=20, r=20, t=20, b=20))
+    fig = px.bar(most_recent10, x = 'title', y = df_column,
+            title = 'Number of ' + col + ' on 10 Most Recent Videos', hover_name = 'title',
+            hover_data = {'title':False, df_column:True}, color_discrete_sequence=['#d62728'])
+    
+    fig.update_layout(xaxis_title = 'Video', yaxis_title= col)
+    
+    # fig.update_layout(
+    #     xaxis = dict(
+    #         tickmode = 'array',
+    #         tickvals = list(range(0,10)),
+    #         ticktext = [most_recent10.title[0][:len(most_recent10.title[0])//2] + '...', 
+    #                     most_recent10.title[1][:len(most_recent10.title[1])//2] + '...',
+    #                     most_recent10.title[2][:len(most_recent10.title[2])//2] + '...',
+    #                     most_recent10.title[3][:len(most_recent10.title[3])//2] + '...',
+    #                     most_recent10.title[4][:len(most_recent10.title[4])//2] + '...',
+    #                     most_recent10.title[5][:len(most_recent10.title[5])//2] + '...',
+    #                     most_recent10.title[6][:len(most_recent10.title[6])//2] + '...',
+    #                     most_recent10.title[7][:len(most_recent10.title[7])//2] + '...',
+    #                     most_recent10.title[8][:len(most_recent10.title[8])//2] + '...',
+    #                     most_recent10.title[9][:len(most_recent10.title[9])//2] + '...',]
+    #     )
+    # )
+    
+    fig.update_layout(
+        xaxis = dict(
+            tickmode = 'array',
+            tickvals = list(range(0,10)),
+            ticktext = ['1','2','3','4','5','6','7','8','9','10']
+        )
+    )
+    
+    fig.update_layout(hovermode="x")
+    fig.update_layout(autosize=False,
+                      width=1000,
+                      height=500,
+                      margin=dict(l=100, r=100, t=100, b=100))
     fig.show()
 ###############################################################################    
 def plot_top_tags(user):
     """
-    returns a df of the top 5 tags used by a specified channel:
+    plots the top 5 tags used by a specified channel:
     
     @user: a string for the user id of the channel
     """
@@ -127,12 +88,22 @@ def plot_top_tags(user):
     
     tags = [tag for tag, _ in top_tags]
     counts = [count for _, count in top_tags]
+    df = pd.DataFrame({'tag' : tags, 'count' : counts})
     
-    fig = px.bar(x = tags, y = counts,
-                 title = 'Top Tags used by ' + in_stats_df.title[0],
-                 hover_data = [tags, counts])
+    # fig = go.Figure()
+    # fig.add_trace(go.Bar(x = df['tag'], y = df['count']))
+    # fig.add_trace(go.Scatter(x = df['tag'], y = df['count']))
+
+    fig = px.bar(df, x = 'tag', y = 'count', hover_name = 'tag', 
+                 hover_data = {'tag':False, 'count':True}, color_discrete_sequence=['#d62728'])
     
-    fig.update_layout(xaxis_title = 'Tags', yaxis_title= 'Counts')
+    fig.update_layout(hovermode="x")
+    fig.update_layout(title = 'Overall Top 5 Most Used Tags', xaxis_title = 'Tags', yaxis_title= 'Counts', showlegend=False)
+    
+    fig.update_layout(autosize=False,
+                      width=1000,
+                      height=500,
+                      margin=dict(l=100, r=100, t=100, b=100))
     fig.show()
 ###############################################################################    
 def top_tags_modified(tags_list):
