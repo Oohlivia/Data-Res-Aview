@@ -250,8 +250,7 @@ def get_video_details(youtube,video_list):
             commentCount = video["statistics"].get("commentCount",0)
             
             duration = video["contentDetails"].get("duration",0)
-            #ex value: PT41M36S, this means 41 minutes and 36 seconds
-           
+    
             
             made_for_kids = video['status'].get('madeForKids',None)
             
@@ -266,13 +265,14 @@ def get_video_details(youtube,video_list):
                                     commentCount = commentCount,
                                     duration = duration,
                                     postingDate = postingDate,
-                                    made_for_kids = made_for_kids
-                                    
+                                   
                                     
             )
             stats_list.append(stats_dictionary)
-            
-    return pd.DataFrame(stats_list)
+            return_df = pd.DataFrame(stats_list)
+            return_df.insert(9,"duration(min)", duration_min(return_df["duration"]))
+            return_df["viewCount"] = return_df["viewCount"].astype(int)
+    return return_df
 
 def add_emails(df):
     """
@@ -328,3 +328,19 @@ def get_channel_id(channel_title):
     channel_id = search_response['items'][0]['id']['channelId']
     
     return channel_id
+
+
+def duration_min(duration_list):
+    durations = []
+    for duration_string in duration_list:
+        minutes_match = re.search(r"(\d+)M", duration_string)
+        seconds_match = re.search(r"(\d+)S", duration_string)
+
+        minutes = int(minutes_match.group(1)) if minutes_match else 0
+        seconds = int(seconds_match.group(1)) if seconds_match else 0
+        # Convert minutes and seconds to total minutes
+        total_minutes = minutes + seconds / 60
+
+        durations.append(total_minutes)
+        
+    return durations

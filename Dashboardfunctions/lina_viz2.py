@@ -14,7 +14,7 @@ def plot_most_recent(df, column):
     
     @df: a channel specific data frame
     @column: a string specifying the column to define top 10; 
-            3 options: 'Like Count', 'View Count', 'Comment Count'
+            4 options: 'Like Count', 'View Count', 'Comment Count', 'Duration'
     """
     if column == 'Like Count':
         df_column = 'likeCount'
@@ -25,6 +25,8 @@ def plot_most_recent(df, column):
     elif column == 'Comment Count':
         df_column = 'commentCount'
         col = 'Comments'
+    elif column == 'Duration':
+        df_column = 'duration(min)'
         
     # youtube = build("youtube","v3", developerKey=api_key)
     # in_stats_df = channels_stats(youtube,[user])
@@ -33,13 +35,28 @@ def plot_most_recent(df, column):
     # most_recent10 = video_stats.sort_values("published", ascending = False).head(10)
     # most_recent10[df_column] = most_recent10.loc[:,df_column].astype(int)
     most_recent10 = df.sort_values('published',ascending=False).head(10)
-    most_recent10[df_column] = most_recent10.loc[:,df_column].astype(int)
+    most_recent10[df_column] = most_recent10.loc[:,df_column].astype(float)
+    most_recent10['published'] = pd.to_datetime(most_recent10['published'])# .dt.date
 
-    fig = px.bar(most_recent10, x = 'title', y = df_column,
-            title = 'Number of ' + col + ' on 10 Most Recent Videos', hover_name = 'title',
-            hover_data = {'title':False, df_column:True}, color_discrete_sequence=['#d62728'])
+    fig = px.line(most_recent10, x = 'published', y = df_column,
+            hover_name = 'title', markers=True,
+            hover_data = {'title':False, 'published':True, df_column:True}, color_discrete_sequence=['#d62728'])
     
-    fig.update_layout(xaxis_title = 'Video', yaxis_title= col)
+    fig.update_xaxes(fixedrange=True)
+    
+    if column == 'Duration':
+        fig.update_layout(title = 'Duration in Minutes of 10 Most Recent Videos',
+                          xaxis_title = 'Date Published', 
+                          yaxis_title= 'Duration in Minutes')
+    else:
+        fig.update_layout(title = 'Number of ' + col + ' on 10 Most Recent Videos',
+                          xaxis_title = 'Date Published', 
+                          yaxis_title= 'Number of ' + col)
+        
+    # fig = go.Figure()
+    # fig.add_trace(go.Bar(x = df['tag'], y = df['count']))
+    # fig.add_trace(go.Scatter(x = df['tag'], y = df['count']))
+    
     
     # fig.update_layout(
     #     xaxis = dict(
@@ -58,20 +75,20 @@ def plot_most_recent(df, column):
     #     )
     # )
     
-    fig.update_layout(
-        xaxis = dict(
-            tickmode = 'array',
-            tickvals = list(range(0,10)),
-            ticktext = ['1','2','3','4','5','6','7','8','9','10']
-        )
-    )
+    # fig.update_layout(
+    #     xaxis = dict(
+    #         tickmode = 'array',
+    #         tickvals = list(range(0,10)),
+    #         ticktext = ['1','2','3','4','5','6','7','8','9','10']
+    #     )
+    # )
     
     fig.update_layout(hovermode="x")
     fig.update_layout(autosize=False,
                       width=1000,
                       height=500,
                       margin=dict(l=100, r=100, t=100, b=100))
-    fig.show()
+    return fig
 ###############################################################################    
 def plot_top_tags(df):
     """
@@ -79,7 +96,7 @@ def plot_top_tags(df):
     
     @df: a channel specific data frame
     """
-        
+    
     # youtube = build("youtube","v3", developerKey=api_key)
     # in_stats_df = channels_stats(youtube,[user])
     # video_ids = get_videoID_list(youtube,user)
@@ -94,19 +111,19 @@ def plot_top_tags(df):
     # fig = go.Figure()
     # fig.add_trace(go.Bar(x = df['tag'], y = df['count']))
     # fig.add_trace(go.Scatter(x = df['tag'], y = df['count']))
-
+    
     fig = px.bar(df, x = 'tag', y = 'count', hover_name = 'tag', 
                  hover_data = {'tag':False, 'count':True}, color_discrete_sequence=['#d62728'])
     
     fig.update_layout(hovermode="x")
-    fig.update_layout(title = 'Overall Top 5 Most Used Tags', xaxis_title = 'Tags', yaxis_title= 'Counts', showlegend=False)
+    fig.update_layout(title = 'Overall Top 5 Most Used Tags', xaxis_title = 'Tag', yaxis_title= 'Number of Times Used', showlegend=False)
     
     fig.update_layout(autosize=False,
                       width=1000,
                       height=500,
                       margin=dict(l=100, r=100, t=100, b=100))
-    fig.show()
-###############################################################################    
+    return fig
+#########################helper functions#######################################    
 def top_tags_modified(tags_list):
     """
     MODIFIED helper function for plot_top_tags and returns the top 5 tags and their number of occurrences for a specific channel
